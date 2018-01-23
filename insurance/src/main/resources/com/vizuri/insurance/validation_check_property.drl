@@ -1,0 +1,98 @@
+package com.vizuri.insurance;
+
+import com.vizuri.insurance.domain.Answer;
+import java.util.Calendar;
+
+dialect "mvel"
+
+rule "stateCheck"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	$answer : Answer( questionId == "p.state", strValue not in ('VA','MD','PA','WV') )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Property");
+	msg.setProperty("state");
+	msg.setMessage("Insurance not offered in the state  of  "+$answer.getStrValue() );
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+
+	insertLogical(msg);	
+end;
+
+
+rule "livingAreaMin"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	$answer : Answer( questionId == "p.livingArea", numValue < 500 )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Property");
+	msg.setProperty("livingArea");
+	msg.setMessage("Living Area needs to be greater than or equal to 500 sq ft.");
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+
+	insertLogical(msg);
+end;
+
+rule "livingAreaMax"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	$answer : Answer( questionId == "p.livingArea", numValue > 5000 )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Property");
+	msg.setProperty("livingArea");
+	msg.setMessage("Living Area needs to be less than or equal to 5000 sq ft.");
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+
+	insertLogical(msg);
+end;
+
+rule "roofTooOld"
+	no-loop true
+	agenda-group "quote-error-check"
+when 
+	$answer : Answer( questionId == "p.ageOfRoof", numValue >= 25 )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Property");
+	msg.setProperty("ageOfRoof");
+	msg.setMessage("Roof Age cannot be greater than 24 years.");
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+
+	insertLogical(msg);
+end
+
+rule "yearBuiltCheck older than 1920"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	$answer : Answer( questionId == "p.yearBuilt", numValue < 1920 )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Property");
+	msg.setProperty("yearBuilt");
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+	msg.setMessage("Year Built cannot be less than 1920");
+	
+	insertLogical(msg);
+end;
+
+rule "yearBuiltMax"
+
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	$answer : Answer( questionId == "p.yearBuilt", numValue > Calendar.getInstance().get(Calendar.YEAR) )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Property");
+	msg.setProperty("yearBuilt");
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+	msg.setMessage("Year Built, cannot be in the future");
+	
+	insertLogical(msg);
+end

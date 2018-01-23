@@ -1,0 +1,89 @@
+package com.vizuri.insurance;
+
+import com.vizuri.insurance.domain.Answer;
+import com.vizuri.insurance.domain.Quote;
+
+dialect "mvel"
+
+rule "test firing agenda group: eligibility"
+	agenda-group "eligibility"
+	lock-on-active true
+when
+	Quote(id != null, riskRate >= 0.0 ) 
+then	
+	System.out.println("******** Fired test rule for agenda group[eligibility]");
+end
+
+rule "check bankruptcy"
+	no-loop true
+	agenda-group "eligibility"
+when
+	$quote : Quote (id != null, status != "HOLD")
+	Answer(questionId == "a.filedForBankruptcy", strValue == "true" ) 
+	Answer(questionId == "a.fraud", strValue == "false" ) 
+then	
+	modify($quote) {setStatus("HOLD")}
+end
+
+rule "check fraud"
+	no-loop true
+	agenda-group "eligibility"
+when
+	$quote : Quote (id != null)
+	$answer : Answer(questionId == "a.fraud", strValue == "true" ) 	
+then		
+	modify($quote) {setStatus("DISQUALIFIED")}
+end
+
+rule "NotRewired"
+	no-loop true
+	agenda-group "eligibility"
+when
+	$quote : Quote (id != null)
+	Answer( questionId == "p.electrictSystemRenovated", boolValue == false ) 
+	// property older than 80 years
+	Answer( questionId == "p.yearBuilt", (numValue - Calendar.getInstance().get(Calendar.YEAR)) > 80 )
+then	
+	modify($quote) {setStatus("HOLD")}
+end
+
+rule "old property"
+
+	no-loop true
+	agenda-group "eligibility"
+when
+	$quote : Quote (id != null)
+	Answer(questionId == "a.fraud", boolValue == false ) 
+	// property older than 15 years
+	Answer( questionId == "p.yearBuilt", (numValue - Calendar.getInstance().get(Calendar.YEAR)) > 15 )
+then	
+	modify($quote) {setStatus("RISKY")}
+end
+
+rule "border line"
+	no-loop true
+	agenda-group "eligibility"
+when
+	$quote : Quote (id != null)
+	Answer(questionId == "a.fraud", boolValue == false ) 
+	Answer(questionId == "p.dogExists", boolValue == true ) 
+then	
+	modify($quote) {setStatus("TALK TO UNDERWRITER")}
+end
+
+rule "No showstoppers"
+	// this rule will only be activated one
+	lock-on-active true	
+	agenda-group "eligibility"
+when
+	$quote : Quote (id != null, status != "ELIGIBLE")
+	// applicant
+	$answer_fraud : Answer(questionId == "a.fraud", boolValue == false ) 
+	$answer_bankrupt : Answer(questionId == "a.filedForBankruptcy", boolValue == false ) 
+	// property
+	Answer( questionId == "p.yearBuilt", (numValue - Calendar.getInstance().get(Calendar.YEAR)) <= 15 )
+	Answer( questionId == "p.electrictSystemRenovated", boolValue == true )
+	Answer( questionId == "p.previousClaims", boolValue == false )
+then	
+	modify($quote) {setStatus("ELIGIBLE")}
+end

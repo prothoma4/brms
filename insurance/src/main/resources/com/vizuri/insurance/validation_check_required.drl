@@ -1,0 +1,72 @@
+package com.vizuri.insurance;
+
+import com.vizuri.insurance.domain.Answer;
+import java.util.Calendar;
+
+dialect "mvel"
+
+rule "If fraud is true then a.anyPreviousInsuranceDenials is required"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	Answer( questionId == "a.fraud", boolValue == true ) 
+	(not Answer( questionId == "a.anyPreviousInsuranceDenials")  
+	or 
+	Answer( questionId == "a.anyPreviousInsuranceDenials", strValue == null || strValue.isEmpty == true))
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Applicant");
+	msg.setProperty("a.anyPreviousInsuranceDenials");
+	msg.setMessage("Please indicate any previos insurance denials");
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+
+	insertLogical(msg);
+end
+
+rule "If selected that dogs exists, but did not give details"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	Answer( questionId == "p.dogExists", boolValue  == true )
+	not Answer( questionId == "p.dogCount", numValue  > 0 )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Property");
+	msg.setProperty("dogs");
+	msg.setMessage("Please enter details of existing dogs");
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+
+	insertLogical(msg);
+end
+
+rule "If selected that claims exists, but did not give details"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	Answer( questionId == "p.previousClaims", boolValue  == true )
+	not Answer( questionId == "c.claimAmount", numValue  > 0 )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup("Property");
+	msg.setProperty("claims");
+	msg.setMessage("Please enter details of previous claims");
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+
+	insertLogical(msg);
+end
+
+rule "If any question has an answer but with no vlaue"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	$answer: Answer( questionId != null, strValue == null || strValue.isEmpty == true )
+	$question : Question( questionId == $answer.questionId, enabled == true, required == true )
+then
+	QuoteMessage msg  = new QuoteMessage();
+	msg.setGroup($question.getGroup());
+	msg.setProperty($question.getMappedProperty());
+	msg.setMessage("Please enter a valid answer for the question: " + $question.getDescription());
+	msg.setMessageStatus(QuoteMessageStatus.ERROR);
+
+	insertLogical(msg);
+end

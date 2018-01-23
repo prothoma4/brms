@@ -1,0 +1,53 @@
+package com.vizuri.insurance;
+
+import com.vizuri.insurance.domain.Answer;
+import com.vizuri.insurance.domain.Question;
+
+// this is for first time inserted answers
+rule "Reset answer updated flag"
+agenda-group "sync-answers"
+when 
+	$a_new : Answer ( updatedValue == true )
+	not $a_old : Answer ( questionId == $a_new.questionId, groupId == $a_new.groupId, updatedValue == false)
+then
+	modify($a_new){ setUpdatedValue( false ) }
+	System.out.println("reset answer: "+ $a_new.getQuestionId());
+end;
+
+// this is for answers that are updated for a second or more times
+rule "Remove old answers"
+agenda-group "sync-answers"
+when 
+	$a_new : Answer ( updatedValue == true)
+	$a_old : Answer ( questionId == $a_new.questionId, groupId == $a_new.groupId, updatedValue == false )
+	
+then
+	// remove the old answer which was not update if we have the same answer but with an updated value
+	System.out.println("remove old answer["+ $a_old.getQuestionId() + "], groupId["+$a_old.getGroupId()+"]");
+	modify($a_new){ setUpdatedValue( false ) }
+	retract( $a_old );
+end
+
+// this will remove deleted answers
+rule "Remove deleted answers"
+	agenda-group "sync-answers"
+when 
+	$a : Answer ( delete == true)
+	
+then
+	// remove the old answer which was deleted
+	System.out.println("remove deleted answer: "+ $a.getQuestionId());
+	retract( $a);
+end;
+
+// this is for setting the question model if any answer
+rule "Update question for a given answer"
+	agenda-group "sync-answers"
+	no-loop true
+when 
+	$answer : Answer ( updatedValue == false)
+	$question : Question ( questionId == $answer.questionId, strValue != $answer.strValue)
+then
+	modify($question){ setStrValue( $answer.getStrValue() ) }
+	System.out.println("set question["+$question.getQuestionId()+"] strValue: "+ $question.getStrValue());
+end

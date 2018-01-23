@@ -1,0 +1,172 @@
+package com.vizuri.insurance;
+
+import com.vizuri.insurance.domain.Answer;
+import com.vizuri.insurance.domain.Question;
+
+dialect "mvel"
+
+rule "test firing agenda group: question-display"
+	agenda-group "question-display"
+	lock-on-active true
+when
+	Quote( ) 
+then
+	
+	System.out.println("******** Fired test rule for agenda group[question-display]");
+end
+
+rule "test firing agenda group: calculation"
+	agenda-group "calculation"
+	lock-on-active true
+when
+	Quote( ) 
+then
+	
+	System.out.println("******** Fired test rule for agenda group[calculation]");
+end
+
+rule "Enable question[a.anyPreviousInsuranceDenials] "
+	no-loop true
+	agenda-group "question-display"
+when
+	$answer : Answer( questionId == "a.fraud", boolValue == true ) 
+	$question : Question(questionId == "a.anyPreviousInsuranceDenials")
+then
+	modify($question) { setEnabled( true ), setRequired( true ) }
+	//update( $question );
+	System.out.println("Enable [a.anyPreviousInsuranceDenials] for agenda group[question-display]");
+end
+
+rule "Disable question[a.anyPreviousInsuranceDenials]"
+	no-loop true
+	agenda-group "question-display"
+when
+	$answer : Answer( questionId == "a.fraud", boolValue == false ) 
+	$question : Question( questionId == "a.anyPreviousInsuranceDenials")
+then
+	modify($question) {setEnabled( false ), setRequired( false )}
+	//update( question );
+       System.out.println("Disable [a.anyPreviousInsuranceDenials] for agenda group[question-display]");
+end
+
+rule "Enable question[p.childCareLiabilityCoverageRequired]"
+
+	no-loop true
+	agenda-group "question-display"
+when
+	$answer : Answer( questionId == "p.childCareBusinessExists", boolValue == true ) 
+	$question : Question(questionId == "p.childCareLiabilityCoverageRequired")
+then
+	modify($question){setEnabled( true )}
+end
+
+rule "Disable question[p.childCareLiabilityCoverageRequired]"
+	no-loop true
+	agenda-group "question-display"
+when
+	$answer : Answer( questionId == "p.childCareBusinessExists", boolValue == false ) 
+	$question : Question(questionId == "p.childCareLiabilityCoverageRequired")
+then
+	modify($question){setEnabled( false )}
+end
+
+rule "Enable question[p.childCareLiabilityAlreadyExists]"
+	no-loop true
+	agenda-group "question-display"
+when
+	$answer : Answer( questionId == "p.childCareLiabilityCoverageRequired", strValue == "true" ) 
+	$question : Question(questionId == "p.childCareLiabilityAlreadyExists")
+then
+	modify($question) {setEnabled( true )}
+	//update( question );
+end
+
+rule "Disable question[p.childCareLiabilityAlreadyExists]"
+	no-loop true
+	agenda-group "question-display"
+when 
+	$answer : Answer( questionId == "p.childCareLiabilityCoverageRequired", boolValue == false ) 
+	$question : Question(questionId == "p.childCareLiabilityAlreadyExists")
+then
+	modify($question){setEnabled( false )}
+end
+
+rule "Enable question[claims]"
+	no-loop true
+	agenda-group "question-display"
+when
+	
+	$answer : Answer( questionId == "p.previousClaims", boolValue == true ) 
+	question20 : Question(questionId == "p.claimDate")
+	question21 : Question(questionId == "p.claimAmount")
+then
+	question20.setEnabled( true );
+	question21.setEnabled( true );
+	update( question20 );
+	update( question21 );
+end
+
+rule "Disable question[claims]"
+	no-loop true
+	agenda-group "question-display"
+when
+	$answer : Answer( questionId == "p.previousClaims", boolValue == false ) 
+	question20 : Question(questionId == "c.claimDate")
+	question21 : Question(questionId == "c.claimAmount")
+then
+	question20.setEnabled( false );
+	question21.setEnabled( false );
+	update( question20 );
+	update( question21 );
+end
+
+rule "If selected that NO claims exists, remove any instances of a claim"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	Answer( questionId == "p.previousClaims", boolValue  == false )
+	$claim : Answer( questionId == "c.claimAmount" )
+then
+	retract($claim);
+	System.out.println("remove answer for claim amount ["+$claim.getStrValue()+ "]");
+end;
+
+rule "Enable question[dogs]"
+	no-loop true
+	agenda-group "question-display"
+when
+	$answer : Answer( questionId == "p.dogExists", boolValue == true ) 
+	question23 : Question(questionId == "p.dogCount")
+	question24 : Question(questionId == "p.dogType")
+then
+	question23.setEnabled( true );
+	question24.setEnabled( true );
+	update( question23 );
+	update( question24 );
+end
+
+rule "Disable question[dogs]"
+
+	no-loop true
+	agenda-group "question-display"
+when
+	$answer : Answer( questionId == "p.dogExists", boolValue == false ) 
+	question23 : Question(questionId == "p.dogCount")
+	question24 : Question(questionId == "p.dogType")
+then
+	question23.setEnabled( false );
+	question24.setEnabled( false );
+	update( question23 );
+	update( question24 );
+end;
+
+rule "If selected that NO dogs exists, remove any instances of a dog"
+	no-loop true
+	agenda-group "quote-error-check"
+when
+	Answer( questionId == "p.dogExists", boolValue  == false )
+	$dog : Answer( questionId == "p.dogCount" )
+then
+	retract($dog);
+	System.out.println("remove answer for dog count ["+$dog.getStrValue()+ "]");
+end

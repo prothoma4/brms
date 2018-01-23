@@ -1,0 +1,14 @@
+package com.vizuri.insurance;
+
+import java.lang.Number;
+
+rule "RiskRateRule_10"
+	dialect "mvel"
+	no-loop true
+	agenda-group "riskRuleGroupDisabled"
+	when
+		If we have a quote
+		If property age is 30 or more but less than 45
+	then
+		Set quote risk rate to 10
+end
